@@ -12,6 +12,10 @@ export const config = {
 
 const handler = async (req: Request): Promise<Response> => {
   try {
+    const user =
+      atob(req.headers.get('authorization')?.replace('Basic ', '') || '').split(
+        ':',
+      )[0] || '';
     const { model, messages, key, prompt } = (await req.json()) as ChatBody;
 
     await init((imports) => WebAssembly.instantiate(wasm, imports));
@@ -42,9 +46,13 @@ const handler = async (req: Request): Promise<Response> => {
       messagesToSend = [message, ...messagesToSend];
     }
 
-    encoding.free();
-
-    const stream = await OpenAIStream(model, promptToSend, key, messagesToSend);
+    const stream = await OpenAIStream(
+      model,
+      promptToSend,
+      key,
+      messagesToSend,
+      { user, tokenCount, encoding },
+    );
 
     return new Response(stream);
   } catch (error) {

@@ -6,6 +6,9 @@ import {
   ReconnectInterval,
 } from 'eventsource-parser';
 import { OPENAI_API_HOST } from '../app/const';
+import { randomUUID } from 'crypto';
+import { logger } from '@/logger';
+import { Tiktoken } from '@dqbd/tiktoken/lite/init';
 
 export class OpenAIError extends Error {
   type: string;
@@ -26,7 +29,13 @@ export const OpenAIStream = async (
   systemPrompt: string,
   key: string,
   messages: Message[],
+  context: {
+    user: string;
+    tokenCount: number;
+    encoding: Tiktoken;
+  },
 ) => {
+  let totalCount = context.tokenCount;
   const res = await fetch(`${OPENAI_API_HOST}/v1/chat/completions`, {
     headers: {
       'Content-Type': 'application/json',
@@ -71,6 +80,17 @@ export const OpenAIStream = async (
       );
     }
   }
+  // console.log(res);
+  const requestId = res.headers.get('x-request-id') || randomUUID();
+  logger.info({
+    requestId,
+    user: context.user,
+    tokenCount: context.tokenCount,
+    type: 'request',
+    model: model,
+    key,
+    messages,
+  });
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -85,11 +105,32 @@ export const OpenAIStream = async (
 
           try {
             const json = JSON.parse(data);
-            const text = json.choices[0].delta.content;
+            const choice = json.choices[0];
+            const text = choice.delta.content;
             const queue = encoder.encode(text);
             controller.enqueue(queue);
+            // console.log(data);
+            if (text) {
+              const tokens = context.encoding.encode(text);
+              totalCount += tokens.length;
+              logger.info({
+                requestId,
+                user: context.user,
+                type: 'stream',
+                stream: text,
+              });
+            } else if (choice.finish_reason) {
+              logger.info({
+                requestId,
+                user: context.user,
+                type: 'stream-end',
+                totalCount,
+              });
+              context.encoding.free();
+            }
           } catch (e) {
             controller.error(e);
+            context.encoding.free();
           }
         }
       };
