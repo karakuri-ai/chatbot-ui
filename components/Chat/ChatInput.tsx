@@ -392,6 +392,7 @@ export const ChatInput = ({
         {t(
           "Chatbot UI is an advanced chatbot kit for OpenAI's chat models aiming to mimic ChatGPT's interface and functionality.",
         )}
+        <p>カスタマーサポートをエンパワーメントする</p>
       </div>
     </div>
   );
