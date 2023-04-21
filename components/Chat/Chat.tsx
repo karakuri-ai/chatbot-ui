@@ -29,10 +29,10 @@ import Spinner from '../Spinner';
 import { ChatInput } from './ChatInput';
 import { ChatLoader } from './ChatLoader';
 import { ErrorMessageDiv } from './ErrorMessageDiv';
+import { MemoizedChatMessage } from './MemoizedChatMessage';
 import { ModelSelect } from './ModelSelect';
 import { SystemPrompt } from './SystemPrompt';
 import { TemperatureSlider } from './Temperature';
-import { MemoizedChatMessage } from './MemoizedChatMessage';
 
 interface Props {
   stopConversationRef: MutableRefObject<boolean>;
@@ -70,6 +70,24 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
 
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
+      const personalInfoContains = await fetch('/api/mask', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: message.content }),
+      })
+        .then((res) => res.json())
+        .then((res) => res.result)
+        .catch(() => false);
+      if (
+        personalInfoContains &&
+        !window.confirm(
+          'このメッセージには個人情報が含まれている可能性があります。送信しますか？',
+        )
+      ) {
+        return;
+      }
       if (selectedConversation) {
         let updatedConversation: Conversation;
         if (deleteCount) {

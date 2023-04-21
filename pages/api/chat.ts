@@ -9,29 +9,6 @@ import wasm from '../../node_modules/@dqbd/tiktoken/lite/tiktoken_bg.wasm?module
 import tiktokenModel from '@dqbd/tiktoken/encoders/cl100k_base.json';
 import { Tiktoken, init } from '@dqbd/tiktoken/lite/init';
 
-const maskingApi = process.env.MASKING_API;
-const maskingApiKey = process.env.MASKING_API_KEY;
-async function containPersonalInfo(text:string) {
-  if (!text || !maskingApi) {
-    return false;
-  }
-  try {
-    const data=await fetch(maskingApi, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${maskingApiKey}`,
-        },
-        body: JSON.stringify({
-          text,
-        }),
-      })
-    } catch(e){
-        console.log(e)
-      }
-
-}
-
 export const config = {
   runtime: 'edge',
 };
@@ -42,8 +19,8 @@ const handler = async (req: Request): Promise<Response> => {
       atob(req.headers.get('authorization')?.replace('Basic ', '') || '').split(
         ':',
       )[0] || '';
-    const { model, messages, key, prompt, temperature } = (await req.json()) as ChatBody;
-    messages[messages.length - 1].content
+    const { model, messages, key, prompt, temperature } =
+      (await req.json()) as ChatBody;
 
     await init((imports) => WebAssembly.instantiate(wasm, imports));
     const encoding = new Tiktoken(
@@ -80,7 +57,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const stream = await OpenAIStream(
       model,
-      promptToSend, temperatureToUse,
+      promptToSend,
+      temperatureToUse,
       key,
       messagesToSend,
       { user, tokenCount, encoding },
