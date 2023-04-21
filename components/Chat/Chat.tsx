@@ -18,6 +18,7 @@ import {
   saveConversations,
   updateConversation,
 } from '@/utils/app/conversation';
+import { events } from '@/utils/app/event';
 import { throttle } from '@/utils/data/throttle';
 
 import { ChatBody, Conversation, Message } from '@/types/chat';
@@ -86,6 +87,12 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           'このメッセージには個人情報が含まれている可能性があります。送信しますか？',
         )
       ) {
+        events.emit({
+          type: 'personal_info_detected',
+          payload: {
+            message: message.content,
+          },
+        });
         return;
       }
       if (selectedConversation) {
