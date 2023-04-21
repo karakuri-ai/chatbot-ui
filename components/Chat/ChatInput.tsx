@@ -18,6 +18,8 @@ import {
 
 import { useTranslation } from 'next-i18next';
 
+import { events } from '@/utils/app/event';
+
 import { Message } from '@/types/chat';
 import { Plugin } from '@/types/plugin';
 import { Prompt } from '@/types/prompt';
@@ -254,6 +256,12 @@ export const ChatInput = ({
     return () => {
       window.removeEventListener('click', handleOutsideClick);
     };
+  }, []);
+
+  useEffect(() => {
+    events.addListener('personal_info_detected', (event) => {
+      setContent(event.payload.message);
+    });
   }, []);
 
   return (

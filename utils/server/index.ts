@@ -125,6 +125,7 @@ export const OpenAIStream = async (
                 totalCount,
                 text: content
               });
+              texts.length = 0;
               context.encoding.free();
               return;
             }
