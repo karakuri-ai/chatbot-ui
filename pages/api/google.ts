@@ -39,7 +39,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
         googleAPIKey ? googleAPIKey : process.env.GOOGLE_API_KEY
       }&cx=${
         googleCSEId ? googleCSEId : process.env.GOOGLE_CSE_ID
-      }&q=${query}&num=5`,
+      }&q=${query}&num=3`,
     );
 
     const googleData = await googleRes.json();
@@ -85,7 +85,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
             return {
               ...source,
               // TODO: switch to tokens
-              text: sourceText.slice(0, 2000),
+              text: sourceText.slice(0, 1500),
             } as GoogleSource;
           }
           // }
@@ -156,19 +156,25 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
       body: JSON.stringify({
         ...(OPENAI_API_TYPE === 'openai' && { model: model.id }),
         messages: chatMessages,
-        max_tokens: 4000,
+        max_tokens: 1000,
         temperature: 1,
         stream: false,
       }),
     });
     const requestId = answerRes.headers.get('x-request-id') || randomUUID();
     const json = await answerRes.json();
+    if (json.error) {
+      throw new Error("Couldn't get answer", { cause: json.error.message });
+    }
     logger.info({
       requestId,
       user,
       type: 'google',
-      totalCount: json.usage['total_tokens'],
-      text: chatMessages.map((message) => message.content).join('\n'),
+      totalCount: json.usage?.['total_tokens'],
+      text:
+        chatMessages.map((message) => message.content).join('\n') +
+        '\n' +
+        json.choices?.[0]?.text,
     });
     const answer = json.choices?.[0]?.message.content || '';
 
