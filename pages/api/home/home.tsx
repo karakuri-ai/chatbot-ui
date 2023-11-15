@@ -274,7 +274,11 @@ const Home = ({
       dispatch({ field: 'pluginKeys', value: [] });
       localStorage.removeItem('pluginKeys');
     } else if (pluginKeys) {
-      dispatch({ field: 'pluginKeys', value: pluginKeys });
+      if (typeof pluginKeys === 'string') {
+        dispatch({ field: 'pluginKeys', value: JSON.parse(pluginKeys) });
+      } else {
+        dispatch({ field: 'pluginKeys', value: pluginKeys });
+      }
     }
 
     if (window.innerWidth < 640) {

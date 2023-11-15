@@ -249,7 +249,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           };
           homeDispatch({
             field: 'selectedConversation',
-            value: updateConversation,
+            value: updatedConversation,
           });
           saveConversation(updatedConversation);
           const updatedConversations: Conversation[] = conversations.map(
@@ -270,6 +270,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       apiKey,
       conversations,
