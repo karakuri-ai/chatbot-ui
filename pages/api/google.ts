@@ -1,17 +1,33 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-import { OPENAI_API_HOST } from '@/utils/app/const';
+import {
+  AZURE_DEPLOYMENT_ID,
+  OPENAI_API_HOST,
+  OPENAI_API_TYPE,
+  OPENAI_API_VERSION,
+  OPENAI_ORGANIZATION,
+} from '@/utils/app/const';
 import { cleanSourceText } from '@/utils/server/google';
 
 import { Message } from '@/types/chat';
 import { GoogleBody, GoogleSource } from '@/types/google';
 
+import { logger } from '@/logger';
 import { Readability } from '@mozilla/readability';
+import { randomUUID } from 'crypto';
 import endent from 'endent';
 import jsdom, { JSDOM } from 'jsdom';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
   try {
+    const user =
+      Buffer.from(
+        req.headers['authorization']?.replace('Basic ', '') || '',
+        'base64',
+      )
+        .toString('ascii')
+        .split(':')[0] || '';
+
     const { messages, key, model, googleAPIKey, googleCSEId } =
       req.body as GoogleBody;
 
@@ -111,38 +127,55 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
     `;
 
     const answerMessage: Message = { role: 'user', content: answerPrompt };
-
-    const answerRes = await fetch(`${OPENAI_API_HOST}/v1/chat/completions`, {
+    let url = `${OPENAI_API_HOST}/v1/chat/completions`;
+    if (OPENAI_API_TYPE === 'azure') {
+      url = `${OPENAI_API_HOST}/openai/deployments/${AZURE_DEPLOYMENT_ID}/chat/completions?api-version=${OPENAI_API_VERSION}`;
+    }
+    const chatMessages = [
+      {
+        role: 'system',
+        content: `Use the sources to provide an accurate response. Respond in markdown format. Cite the sources you used as [1](link), etc, as you use them. Maximum 4 sentences.`,
+      },
+      answerMessage,
+    ];
+    const answerRes = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`,
-        ...(process.env.OPENAI_ORGANIZATION && {
-          'OpenAI-Organization': process.env.OPENAI_ORGANIZATION,
+        ...(OPENAI_API_TYPE === 'openai' && {
+          Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`,
         }),
+        ...(OPENAI_API_TYPE === 'azure' && {
+          'api-key': `${key ? key : process.env.OPENAI_API_KEY}`,
+        }),
+        ...(OPENAI_API_TYPE === 'openai' &&
+          OPENAI_ORGANIZATION && {
+            'OpenAI-Organization': OPENAI_ORGANIZATION,
+          }),
       },
       method: 'POST',
       body: JSON.stringify({
-        model: model.id,
-        messages: [
-          {
-            role: 'system',
-            content: `Use the sources to provide an accurate response. Respond in markdown format. Cite the sources you used as [1](link), etc, as you use them. Maximum 4 sentences.`,
-          },
-          answerMessage,
-        ],
-        max_tokens: 1000,
+        ...(OPENAI_API_TYPE === 'openai' && { model: model.id }),
+        messages: chatMessages,
+        max_tokens: 4000,
         temperature: 1,
         stream: false,
       }),
     });
-
-    const { choices: choices2 } = await answerRes.json();
-    const answer = choices2[0].message.content;
+    const requestId = answerRes.headers.get('x-request-id') || randomUUID();
+    const json = await answerRes.json();
+    logger.info({
+      requestId,
+      user,
+      type: 'google',
+      totalCount: json.usage['total_tokens'],
+      text: chatMessages.map((message) => message.content).join('\n'),
+    });
+    const answer = json.choices?.[0]?.message.content || '';
 
     res.status(200).json({ answer });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error'})
+    res.status(500).json({ error: 'Error' });
   }
 };
 

@@ -1,4 +1,9 @@
-import { OPENAI_API_HOST, OPENAI_API_TYPE, OPENAI_API_VERSION, OPENAI_ORGANIZATION } from '@/utils/app/const';
+import {
+  OPENAI_API_HOST,
+  OPENAI_API_TYPE,
+  OPENAI_API_VERSION,
+  OPENAI_ORGANIZATION,
+} from '@/utils/app/const';
 
 import { OpenAIModel, OpenAIModelID, OpenAIModels } from '@/types/openai';
 
@@ -14,6 +19,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     let url = `${OPENAI_API_HOST}/v1/models`;
     if (OPENAI_API_TYPE === 'azure') {
+      return new Response(
+        JSON.stringify([
+          {
+            id: OpenAIModelID.GPT_3_5_AZ,
+            name: 'GPT-3.5',
+            maxLength: 12000,
+            tokenLimit: 4000,
+          },
+          {
+            id: OpenAIModelID.GPT_4,
+            name: 'GPT-4',
+            maxLength: 24000,
+            tokenLimit: 8000,
+          },
+          {
+            id: OpenAIModelID.GPT_4_32K,
+            name: 'GPT-4-32K',
+            maxLength: 96000,
+            tokenLimit: 32000,
+          },
+        ]),
+        { status: 200 },
+      );
       url = `${OPENAI_API_HOST}/openai/deployments?api-version=${OPENAI_API_VERSION}`;
     }
 
@@ -21,14 +49,15 @@ const handler = async (req: Request): Promise<Response> => {
       headers: {
         'Content-Type': 'application/json',
         ...(OPENAI_API_TYPE === 'openai' && {
-          Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`
+          Authorization: `Bearer ${key ? key : process.env.OPENAI_API_KEY}`,
         }),
         ...(OPENAI_API_TYPE === 'azure' && {
-          'api-key': `${key ? key : process.env.OPENAI_API_KEY}`
+          'api-key': `${key ? key : process.env.OPENAI_API_KEY}`,
         }),
-        ...((OPENAI_API_TYPE === 'openai' && OPENAI_ORGANIZATION) && {
-          'OpenAI-Organization': OPENAI_ORGANIZATION,
-        }),
+        ...(OPENAI_API_TYPE === 'openai' &&
+          OPENAI_ORGANIZATION && {
+            'OpenAI-Organization': OPENAI_ORGANIZATION,
+          }),
       },
     });
 
@@ -50,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const models: OpenAIModel[] = json.data
       .map((model: any) => {
-        const model_name = (OPENAI_API_TYPE === 'azure') ? model.model : model.id;
+        const model_name = OPENAI_API_TYPE === 'azure' ? model.model : model.id;
         for (const [key, value] of Object.entries(OpenAIModelID)) {
           if (value === model_name) {
             return {

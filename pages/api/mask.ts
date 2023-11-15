@@ -21,7 +21,7 @@ async function containPersonalInfo(text: string) {
       data.message === 'success' && data.result.text !== data.result.raw_text
     );
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 }
 
