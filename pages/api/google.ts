@@ -43,15 +43,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
     );
 
     const googleData = await googleRes.json();
-
-    const sources: GoogleSource[] = googleData.items.map((item: any) => ({
-      title: item.title,
-      link: item.link,
-      displayLink: item.displayLink,
-      snippet: item.snippet,
-      image: item.pagemap?.cse_image?.[0]?.src,
-      text: '',
-    }));
+    // console.log('googleData', JSON.stringify(googleData, null, 2));
+    const sources: GoogleSource[] =
+      googleData.items?.map((item: any) => ({
+        title: item.title,
+        link: item.link,
+        displayLink: item.displayLink,
+        snippet: item.snippet,
+        image: item.pagemap?.cse_image?.[0]?.src,
+        text: '',
+      })) || [];
 
     const sourcesWithText: any = await Promise.all(
       sources.map(async (source) => {
@@ -85,7 +86,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
             return {
               ...source,
               // TODO: switch to tokens
-              text: sourceText.slice(0, 1500),
+              text: sourceText.slice(0, 1400),
             } as GoogleSource;
           }
           // }
@@ -134,7 +135,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse<any>) => {
     const chatMessages = [
       {
         role: 'system',
-        content: `Use the sources to provide an accurate response. Respond in markdown format. Cite the sources you used as [1](link), etc, as you use them. Maximum 4 sentences.`,
+        content: `Use the sources to provide an accurate response. Respond in markdown format. Cite the sources you used as [1](link), etc, as you use them. Maximum 4 sentences.回答は日本語で。`,
       },
       answerMessage,
     ];
